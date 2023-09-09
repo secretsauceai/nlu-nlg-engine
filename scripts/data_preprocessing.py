@@ -6,7 +6,7 @@ import os
 
 
 # Load the toml file
-config = toml.load("./config/config.toml")
+config = toml.load("nlu-engine/config/config.toml")
 
 # Load the dataset
 df = pd.read_csv(config["data_file"], sep=',')
