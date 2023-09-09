@@ -94,5 +94,5 @@ trainer = Trainer(
 
 trainer.train()
 
-model.save_pretrained(config["output_directory"])
-tokenizer.save_pretrained(config["output_directory"])
+model.save_pretrained(config["model_output_directory"])
+tokenizer.save_pretrained(config["model_output_directory"])
