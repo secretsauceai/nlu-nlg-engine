@@ -24,12 +24,12 @@ def preprocess_function(df):
 
 
 def get_entity_types_from_annotation(annotated_utterance):
-  """
-  Extracts the entity types from the annotated utterance
-  """
-  entity_types = [match.split(' : ')[0].replace('[', '') for match in re.findall(r'\[.*?\]', annotated_utterance)]
-  # turn entity_types list into a set and turn that into a joined string with a comma
-  return ', '.join(set(entity_types))
+    """
+    Extracts the entity types from the annotated utterance
+    """
+    entity_types = [match.split(' : ')[0].replace('[', '') for match in re.findall(r'\[.*?\]', annotated_utterance)]
+    # turn entity_types list into a set and turn that into a joined string with a comma
+    return ', '.join(set(entity_types))
 
 
 def get_intents_and_entities(df):
@@ -40,10 +40,10 @@ def get_intents_and_entities(df):
     for index, row in df.iterrows():
         entity_types = get_entity_types_from_annotation(row['annotated_utterance'])
         if entity_types != '':
-         try:
-                intents_entities[row['intent']] = intents_entities[row['intent']] + ', ' + entity_types
-         except KeyError:
-             intents_entities[row['intent']] = entity_types
+            try:
+              intents_entities[row['intent']] = intents_entities[row['intent']] + ', ' + entity_types
+            except KeyError:
+              intents_entities[row['intent']] = entity_types
 
     # for the above dictionary, remove the duplicates from the values
     for key, value in intents_entities.items():
@@ -53,15 +53,15 @@ def get_intents_and_entities(df):
 
 #TODO: refactor this for the entity prompt
 
-def get_entity_type_prompt(selected_row):
+def get_entity_type_prompt(selected_row, intents_entities):
     selected_utterance = selected_row['utterance']
     selected_domain = selected_row['domain']
     selected_intent = selected_row['intent']
 
     try:
-      entity_types_in_intent = intents_entities[selected_intent]
+        entity_types_in_intent = intents_entities[selected_intent]
     except:
-      entity_types_in_intent = ''
+       entity_types_in_intent = ''
 
 
 
@@ -94,7 +94,7 @@ df = preprocess_function(df)
 intents_entities = get_intents_and_entities(df)
 
 data_set_df = pd.DataFrame()
-data_set_df['entity_type_prompt'] = df.apply(lambda row: get_entity_type_prompt(row), axis=1)
+data_set_df['entity_type_prompt'] = df.apply(lambda row: get_entity_type_prompt(row, intents_entities), axis=1)
 data_set_df['annotated_utterance'] = df.annotated_utterance
 
 # save the data set in data/processed folder, if the folder doesn't exist, create it
