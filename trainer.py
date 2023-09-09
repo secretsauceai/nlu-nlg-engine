@@ -7,7 +7,7 @@ from datasets import Dataset
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
 
 # Load the toml file
-config = toml.load("config/config.toml")
+config = toml.load("nlu-engine/config/config.toml")
 
 # Load the model and tokenizer
 model_id = config["model_id"]
@@ -46,7 +46,7 @@ train_dataset = tokenized_dataset.train_test_split(test_size=config['test_split'
 val_dataset = tokenized_dataset.train_test_split(test_size=config['test_split'])['test']
 
 args = TrainingArguments(
-    output_dir=config["output_directory"],
+    output_dir=config["model_output_directory"],
     evaluation_strategy="epoch",
     learning_rate=config["learning_rate"],
     per_device_train_batch_size=config["per_device_train_batch_size"],
