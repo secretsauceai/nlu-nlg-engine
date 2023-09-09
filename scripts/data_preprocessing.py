@@ -6,10 +6,11 @@ import os
 
 
 # Load the toml file
-config = toml.load("config/config.toml")
+config = toml.load("./config/config.toml")
 
 # Load the dataset
 df = pd.read_csv(config["data_file"], sep=',')
+print(df.head())
 
 def preprocess_function(df):
     '''
