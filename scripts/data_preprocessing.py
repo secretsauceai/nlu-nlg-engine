@@ -124,6 +124,8 @@ class DataPreprocessor:
             entity_types_in_intent = ''
 
 
+        # TODO: Create several prompts and assign them at random for intent and entity tasks
+        # TODO: Watch out for the current entity task, it gives the entity types in the prompt!
 
         entity_type_prompt = f"""
         ### Instructions

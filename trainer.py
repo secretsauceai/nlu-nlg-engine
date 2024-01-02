@@ -1,8 +1,6 @@
 import toml
-import re
 import numpy as np
 import pandas as pd
-
 from datasets import Dataset
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
 
@@ -11,39 +9,35 @@ config = toml.load("nlu-engine/config/config.toml")
 
 # Load the model and tokenizer
 model_id = config["model_id"]
-model = AutoModelForSeq2SeqLM.from_pretrained(model_id, device_map="auto")
+model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
 tokenizer = AutoTokenizer.from_pretrained(model_id)
-
 
 # Load the processed dataset
 df = pd.read_csv(config["data_file"], sep=',')
 dataset = Dataset.from_pandas(df)
 
-
-def get_model_output(prompt):
-    inputs = tokenizer.encode(prompt, return_tensors='pt')
-    #inputs.to('cuda')
-    print(f"Number of tokens in prompt: {len(inputs[0])}")
-    outputs = model.generate(inputs, max_length=768)
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
-
 def tokenize_batch(batch):
-    encoded_inputs = tokenizer(batch['entity_type_prompt'], padding='max_length', truncation=False, max_length=512, return_attention_mask=True)
-    encoded_labels = tokenizer(batch['annotated_utterance'], padding='max_length', truncation=True, max_length=32)
+    # Tokenize the prompts and answers
+    # Padding to the max length might be necessary depending on your model's requirements.
+    # Adjust max_length as per your model's specification or dataset's length distribution.
+    tokenized_inputs = tokenizer(batch["prompt"], padding="max_length", truncation=True, max_length=512)
+    tokenized_labels = tokenizer(batch["answer"], padding="max_length", truncation=True, max_length=64)
 
-    batch['input_ids'] = encoded_inputs['input_ids']
-    batch['attention_mask'] = encoded_inputs['attention_mask']
-    batch['labels'] = encoded_labels['input_ids']
+    # Flan-T5 and other seq2seq models use decoder_input_ids for labels during training
+    batch["input_ids"] = tokenized_inputs.input_ids
+    batch["attention_mask"] = tokenized_inputs.attention_mask
+    batch["labels"] = tokenized_labels.input_ids
 
     return batch
 
 tokenized_dataset = dataset.map(tokenize_batch, batched=True)
-essential_columns = ['input_ids', 'attention_mask', 'labels']
+essential_columns = ["input_ids", "attention_mask", "labels", "task_type"]
 tokenized_dataset = tokenized_dataset.remove_columns([col for col in tokenized_dataset.column_names if col not in essential_columns])
 
 # Split your tokenized dataset into training and validation sets
-train_dataset = tokenized_dataset.train_test_split(test_size=config['test_split'])['train']
-val_dataset = tokenized_dataset.train_test_split(test_size=config['test_split'])['test']
+split_dataset = tokenized_dataset.train_test_split(test_size=config["test_split"])
+train_dataset = split_dataset["train"]
+val_dataset = split_dataset["test"]
 
 args = TrainingArguments(
     output_dir=config["model_output_directory"],
@@ -58,30 +52,43 @@ args = TrainingArguments(
 )
 
 def compute_metrics(eval_pred):
-    logits, labels = eval_pred.predictions, eval_pred.label_ids
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    
+    # Access the evaluation dataset from the global scope or context
+    # This requires that the eval_dataset have a 'task_type' column
+    eval_dataset = trainer.eval_dataset  # Assuming trainer object is accessible
+    task_types = eval_dataset['task_type']
 
-    # Debugging
-    #TODO: remove the print statements, do I need to keep logits = logits[0]?
-    print("Logits type:", type(logits))
-    if isinstance(logits, tuple):
-        print("Logits tuple length:", len(logits))
-        for idx, item in enumerate(logits):
-            print(f"Item {idx} type: {type(item)}, shape: {item.shape}")
-        logits = logits[0]  # Assuming the first item in the tuple is the actual logits
+    # Flatten predictions and labels for computing metrics
+    pred_flat = predictions.flatten()
+    labels_flat = labels.flatten()
+    task_types_flat = task_types.flatten()  # Ensure task_types are flattened and aligned with predictions/labels
+    
+    # Initialize score dictionaries
+    scores = {'intent': {'exact_match': 0}, 'entity': {'exact_match': 0}}
+    count = {'intent': 0, 'entity': 0}
+    
+    # Iterate over each prediction and corresponding label
+    for idx, (pred, label) in enumerate(zip(pred_flat, labels_flat)):
+        if label == -100:  # Ignoring the padding tokens
+            continue
+        
+        task_type = task_types_flat[idx]  # Determine task type for this prediction
+        
+        # Calculate exact match for the relevant task
+        exact_match = int(pred == label)
+        scores[task_type]['exact_match'] += exact_match
+        count[task_type] += 1
+    
+    # Calculate average scores
+    for task, score in scores.items():
+        if count[task] > 0:
+            scores[task]['exact_match'] /= count[task]
 
-    print("Raw logits shape:", logits.shape)
-    print("Raw labels shape:", labels.shape)
 
-    logits_np = logits.cpu().numpy() if hasattr(logits, 'is_cuda') and logits.is_cuda else logits
-    labels_np = labels.cpu().numpy() if hasattr(labels, 'is_cuda') and labels.is_cuda else labels
+    return scores
 
-    print("Logits shape after conversion:", logits_np.shape)
-    print("Labels shape after conversion:", labels_np.shape)
-
-    pred_ids = np.argmax(logits_np, axis=-1)
-    match = (pred_ids == labels_np).all(axis=1).mean()
-
-    return {"exact_match": match}
 
 trainer = Trainer(
     model=model,
