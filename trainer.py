@@ -5,7 +5,7 @@ from datasets import Dataset
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
 
 # Load the toml file
-config = toml.load("nlu-engine/config/config.toml")
+config = toml.load("config/config.toml")
 
 # Load the model and tokenizer
 model_id = config["model_id"]
@@ -53,41 +53,31 @@ args = TrainingArguments(
 
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
-    predictions = np.argmax(logits, axis=-1)
-    
-    # Access the evaluation dataset from the global scope or context
-    # This requires that the eval_dataset have a 'task_type' column
-    eval_dataset = trainer.eval_dataset  # Assuming trainer object is accessible
+    predictions = np.argmax(logits, axis=-1)  # Ensure logits are 2D if it's throwing error
+
+    eval_dataset = trainer.eval_dataset
     task_types = eval_dataset['task_type']
 
-    # Flatten predictions and labels for computing metrics
-    pred_flat = predictions.flatten()
     labels_flat = labels.flatten()
-    task_types_flat = task_types.flatten()  # Ensure task_types are flattened and aligned with predictions/labels
+    task_types_flat = task_types.flatten()
     
-    # Initialize score dictionaries
     scores = {'intent': {'exact_match': 0}, 'entity': {'exact_match': 0}}
     count = {'intent': 0, 'entity': 0}
-    
-    # Iterate over each prediction and corresponding label
-    for idx, (pred, label) in enumerate(zip(pred_flat, labels_flat)):
-        if label == -100:  # Ignoring the padding tokens
+
+    for idx, (pred, label) in enumerate(zip(predictions.flatten(), labels_flat)):
+        if label == -100:  # Ignoring padding
             continue
-        
-        task_type = task_types_flat[idx]  # Determine task type for this prediction
-        
-        # Calculate exact match for the relevant task
+        task_type = task_types_flat[idx]
         exact_match = int(pred == label)
         scores[task_type]['exact_match'] += exact_match
         count[task_type] += 1
-    
-    # Calculate average scores
-    for task, score in scores.items():
+
+    for task in scores:
         if count[task] > 0:
             scores[task]['exact_match'] /= count[task]
 
-
     return scores
+
 
 
 trainer = Trainer(
