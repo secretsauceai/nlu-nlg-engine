@@ -32,7 +32,8 @@ def tokenize_batch(batch):
 
 tokenized_dataset = dataset.map(tokenize_batch, batched=True)
 essential_columns = ["input_ids", "attention_mask", "labels", "task_type"]
-tokenized_dataset = tokenized_dataset.remove_columns([col for col in tokenized_dataset.column_names if col not in essential_columns])
+tokenized_dataset = tokenized_dataset.remove_columns(
+    [col for col in tokenized_dataset.column_names if col not in essential_columns])
 
 # Split your tokenized dataset into training and validation sets
 split_dataset = tokenized_dataset.train_test_split(test_size=config["test_split"])
@@ -52,32 +53,43 @@ args = TrainingArguments(
 )
 
 def compute_metrics(eval_pred):
-    logits, labels = eval_pred
-    predictions = np.argmax(logits, axis=-1)  # Ensure logits are 2D if it's throwing error
+    logits, labels = eval_pred.predictions, eval_pred.label_ids
 
-    eval_dataset = trainer.eval_dataset
-    task_types = eval_dataset['task_type']
+    # If logits is a tuple, we're assuming the actual logits are the first element
+    if isinstance(logits, tuple):
+        logits = logits[0]
 
-    labels_flat = labels.flatten()
-    task_types_flat = task_types.flatten()
-    
+    logits_np = logits.detach().cpu().numpy() if hasattr(logits, 'detach') else logits
+    labels_np = labels.detach().cpu().numpy() if hasattr(labels, 'detach') else labels
+    pred_ids = np.argmax(logits_np, axis=-1)
+
+    task_types = trainer.eval_dataset['task_type']
+
     scores = {'intent': {'exact_match': 0}, 'entity': {'exact_match': 0}}
     count = {'intent': 0, 'entity': 0}
 
-    for idx, (pred, label) in enumerate(zip(predictions.flatten(), labels_flat)):
-        if label == -100:  # Ignoring padding
-            continue
-        task_type = task_types_flat[idx]
-        exact_match = int(pred == label)
+    for pred, label, task_type in zip(pred_ids, labels_np, task_types):
+        # Skip comparison for padding tokens (-100 is often used for padding in Hugging Face)
+        valid_indices = label != -100
+        pred = pred[valid_indices]
+        label = label[valid_indices]
+
+        # Calculate exact match for this example
+        exact_match = np.all(pred == label)
+
+        # Increment counts and add to scores based on task type
         scores[task_type]['exact_match'] += exact_match
         count[task_type] += 1
 
-    for task in scores:
-        if count[task] > 0:
-            scores[task]['exact_match'] /= count[task]
+    avg_scores = {}
+    for task, task_count in count.items():
+        avg_score_key = f"{task}_exact_match"
+        if task_count > 0:
+            avg_scores[avg_score_key] = scores[task]['exact_match'] / task_count
+        else:
+            avg_scores[avg_score_key] = 0
 
-    return scores
-
+    return avg_scores
 
 
 trainer = Trainer(
