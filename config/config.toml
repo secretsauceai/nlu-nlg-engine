@@ -1,8 +1,9 @@
 model_id = "google/flan-t5-base"
-data_file = "data/processed/entity_data_set.csv" #"/content/drive/MyDrive/secret_sauce_ai/cleaned_annotated.csv"
-task = "entity"
+data_file = "data/cleaned_annotated.csv" #"data/processed/entity_data_set.csv" #"/content/drive/MyDrive/secret_sauce_ai/cleaned_annotated.csv"
+entity_training = true
+domain_intent_training = true
 test_split = 0.2
-model_output_directory = "models/flan_t5_base_ner"
+model_output_directory = "models/flan_t5_base_intent_ner"
 learning_rate = 2e-5
 per_device_train_batch_size = 4
 per_device_eval_batch_size = 4
