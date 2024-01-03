@@ -9,7 +9,7 @@ config = toml.load("config/config.toml")
 
 # Load the model and tokenizer
 model_id = config["model_id"]
-model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_id, device_map='auto')
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
 # Load the processed dataset
