@@ -2,7 +2,7 @@ import toml
 import numpy as np
 import pandas as pd
 from datasets import Dataset
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback
 
 # Load the toml file
 config = toml.load("config/config.toml")
@@ -49,7 +49,12 @@ args = TrainingArguments(
     num_train_epochs=config["num_train_epochs"],
     weight_decay=0.01,
     logging_strategy="steps",
-    logging_steps=10  # Log every 10 steps. Adjust this based on your preference.
+    logging_steps=10,
+    load_best_model_at_end=True,  # Load best model at end of training
+    metric_for_best_model="eval_loss",  # Change this based on what metric you're optimizing for
+    greater_is_better=False,  # Change based on metric (False for loss, True for accuracy)
+    save_strategy="epoch",
+    save_total_limit=2,  # Limits the total amount of checkpoints, delete the older checkpoints
 )
 
 def compute_metrics(eval_pred):
@@ -100,6 +105,10 @@ trainer = Trainer(
     compute_metrics=compute_metrics,
     tokenizer=tokenizer,
 )
+
+# Include the EarlyStoppingCallback with the desired patience
+trainer.add_callback(
+    EarlyStoppingCallback(early_stopping_patience=config["early_stopping_patience"]))
 
 trainer.train()
 
