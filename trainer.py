@@ -54,7 +54,6 @@ args = TrainingArguments(
     metric_for_best_model="eval_loss",  # Change this based on what metric you're optimizing for
     greater_is_better=False,  # Change based on metric (False for loss, True for accuracy)
     save_strategy="epoch",
-    save_total_limit=4,  # Limits the total amount of checkpoints, delete the older checkpoints
 )
 
 def compute_metrics(eval_pred):
