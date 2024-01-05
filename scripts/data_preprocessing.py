@@ -159,16 +159,14 @@ class DataPreprocessor:
 
         entity_type_prompt = f"""
         ### Instructions
-        Given an utterance, tag the entity or entities only when they match from the list of entity types.
-        There can be more entities in an utterance and more than one entity type in an utterance.
+        Tag the entity or entities in the utterance only when they match from the list of entity types.
         There can also be no entities in an utterance. In that case, just return the utterance.
         If there aren't any entity types, just return the utterance.
-        To help, the domain and intent are provided for the utterance.
 
         ### Example
         Utterance: Set an alarm for 6am
         Domain: alarm
-        intent: set_alarm
+        Intent: set_alarm
         Entity types: date, time
         Annotated utterance: Set an alarm for [time : 6am]
 

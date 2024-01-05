@@ -1,8 +1,8 @@
+import os
 import toml
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import pandas as pd
-import numpy as np
 
 class ModelInference:
     def __init__(self, model_dir: str, tokenizer_dir: str, device: str = 'cuda'):
@@ -55,14 +55,10 @@ def run_inference(data: pd.DataFrame, inferencer: ModelInference):
     inferencer (ModelInference): The inference object.
 
     Returns:
-    List[str]: List of predictions.
+    pd.DataFrame: The DataFrame with an added column for predictions.
     """
-    predictions = []
-    for _, row in data.iterrows():
-        prompt = row['prompt']
-        prediction = inferencer.predict(prompt)
-        predictions.append(prediction)
-    return predictions
+    data['predictions'] = [inferencer.predict(row['prompt']) for _, row in data.iterrows()]
+    return data
 
 if __name__ == "__main__":
     # Load configuration
@@ -76,8 +72,15 @@ if __name__ == "__main__":
     prepared_data = load_and_prepare_data(config["processed_data_file"])
 
     # Run inference
-    predictions = run_inference(prepared_data, inferencer)
+    prepared_data = run_inference(prepared_data, inferencer)
 
-    # Output results
-    for prediction in predictions:
-        print(prediction)  # or handle as needed
+    # Define the output path for the predictions CSV from the config file
+    output_csv_path = config["predictions_output_file"]
+
+    # Ensure the directory exists
+    output_dir = os.path.dirname(output_csv_path)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Export the updated DataFrame with predictions to a CSV file
+    prepared_data.to_csv(output_csv_path, index=False)
+    print(f"Predictions exported successfully to {output_csv_path}")
