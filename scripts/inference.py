@@ -3,6 +3,7 @@ import toml
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import pandas as pd
+from tqdm import tqdm
 
 class ModelInference:
     def __init__(self, model_dir: str, tokenizer_dir: str, device: str = 'cuda'):
@@ -57,7 +58,8 @@ def run_inference(data: pd.DataFrame, inferencer: ModelInference):
     Returns:
     pd.DataFrame: The DataFrame with an added column for predictions.
     """
-    data['predictions'] = [inferencer.predict(row['prompt']) for _, row in data.iterrows()]
+    tqdm.pandas(desc="Running Inference")
+    data['predictions'] = data['prompt'].progress_apply(inferencer.predict)
     return data
 
 if __name__ == "__main__":
