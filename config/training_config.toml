@@ -1,0 +1,14 @@
+# Config for training
+
+# Data file to use
+data_file = 'data/processed_data.csv'
+
+# Model Parameters
+model_id = "google/flan-t5-base"
+test_split = 0.2
+model_output_directory = "models/flan_t5_base_intent_ner"
+learning_rate = 2e-5
+per_device_train_batch_size = 4
+per_device_eval_batch_size = 4
+num_train_epochs = 10
+early_stopping_patience = 3

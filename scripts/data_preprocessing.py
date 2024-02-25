@@ -43,7 +43,14 @@ class DataPreprocessor:
         self.config = toml.load(config_path)
         self.df = pd.read_csv(self.config["data_file"], sep=',')
         self.domain_intent_training = self.config.get("domain_intent_training", False)
-        self.entity_training = self.config.get("entity_training", False)
+        self.entity_bracket_training = self.config.get("entity_bracket_training", False)
+        self.entity_slot_training = self.config.get("entity_slot_training", False)
+        self.domain_intent_template = self.config["prompt_templates"]["domain_intent_template"]
+        self.entity_template = None
+
+
+
+
 
     def clean_and_structure_data(self) -> pd.DataFrame:
         """
@@ -78,25 +85,25 @@ class DataPreprocessor:
 
         # create a random number between 3 and number_of_domains
         # NOTE: This should be changed as needed to get a good range.
-        random_number = random.randint(10, number_of_domains)
-
-        # select a random number of unique domains
-        selected_domains = self.df['domain'].sample(n=random_number).unique().tolist()
-
-        # check if selected domain is not in selected domains, if not add it in a random position in the list
-        if selected_domain not in selected_domains:
-            selected_domains.insert(random.randint(0, len(selected_domains)), selected_domain)
+        if number_of_domains < 10:
+            random_number = number_of_domains
+            selected_domains = self.df['domain'].unique().tolist()
+        else:
+            random_number = random.randint(10, number_of_domains)
+            # select a random number of unique domains
+            selected_domains = self.df['domain'].sample(n=random_number).unique().tolist()
+            # check if selected domain is not in selected domains, if not add it in a random position in the list
+            if selected_domain not in selected_domains:
+                selected_domains.insert(random.randint(0, len(selected_domains)), selected_domain)
 
         domain_intents = {}
         for domain in selected_domains:
             domain_intents[domain] = self.df[
                 self.df['domain'] == domain]['intent'].unique().tolist()
 
-        domain_intent_prompt = f"""
-        Given this utterance: '{selected_utterance}' pick the unique intent from these domain categories:
-        {domain_intents}.
-        If none of the intents match, return fallback.
-        Intent:"""
+        domain_intent_prompt = self.domain_intent_template.format(
+            selected_utterance=selected_utterance, selected_domain=selected_domain, domain_intents=domain_intents)
+        
         return domain_intent_prompt
 
     def get_entity_types_from_annotation(self, annotated_utterance: str) -> str:
@@ -134,6 +141,46 @@ class DataPreprocessor:
         for key, value in intents_entities.items():
             intents_entities[key] = ', '.join(set(value.split(', ')))
         return intents_entities
+    
+    def convert_annotated_utterance_to_slots(self, annotated_utterance):
+        """
+        This function takes in an annotated utterance and returns a string of the entity type for each word in the utterance. 
+        """
+        # Regular expression to find bracketed expressions with entity types
+        pattern = re.compile(r'\[(.*?) : (.*?)\]')
+        
+        # Placeholder for the transformed words
+        transformed_words = []
+        
+        # Tracks the last index processed to handle text outside brackets
+        last_idx_processed = 0
+        
+        # Iterate over all matches of bracketed expressions
+        for match in pattern.finditer(annotated_utterance):
+            # Extract the entity type and entity value(s) from the match
+            entity_type, entities = match.groups()
+            
+            # Split entities on spaces assuming multiple entities can be separated by spaces
+            entity_values = entities.split()
+            
+            # Handle the text before the current bracketed expression (if any)
+            pre_text = annotated_utterance[last_idx_processed:match.start()].strip()
+            if pre_text:
+                transformed_words.extend(['0'] * len(pre_text.split()))
+            
+            # Replace each entity value with the entity type
+            transformed_words.extend([entity_type] * len(entity_values))
+            
+            # Update the last index processed
+            last_idx_processed = match.end()
+        
+        # Handle any remaining text after the last bracketed expression
+        post_text = annotated_utterance[last_idx_processed:].strip()
+        if post_text:
+            transformed_words.extend(['0'] * len(post_text.split()))
+        
+        return ' '.join(transformed_words)
+
 
     def get_entity_type_prompt(
             self, selected_row: pd.Series, intents_entities: Dict[str, str]) -> str:
@@ -157,25 +204,9 @@ class DataPreprocessor:
 
         # TODO: Create several prompts and assign them at random for intent and entity tasks
 
-        entity_type_prompt = f"""
-        ### Instructions
-        Tag the entity or entities in the utterance only when they match from the list of entity types.
-        There can also be no entities in an utterance. In that case, just return the utterance.
-        If there aren't any entity types, just return the utterance.
-
-        ### Example
-        Utterance: Set an alarm for 6am
-        Domain: alarm
-        Intent: set_alarm
-        Entity types: date, time
-        Annotated utterance: Set an alarm for [time : 6am]
-
-        ### Task
-        Utterance: {selected_utterance}
-        Domain: {selected_domain}
-        Intent: {selected_intent}
-        Entity types: {entity_types_in_intent}
-        Annotated utterance:"""
+        entity_type_prompt = self.entity_template.format(
+            selected_utterance=selected_utterance, selected_domain=selected_domain,
+            selected_intent=selected_intent, entity_types_in_intent=entity_types_in_intent)
 
         return entity_type_prompt
 
@@ -196,8 +227,10 @@ class DataPreprocessor:
             intent_task_df['task_type'] = 'intent'
             task_dfs.append(intent_task_df)
 
-        if self.entity_training:
+        if self.entity_bracket_training:
+            print("Entity bracket training")
             # Apply logic to generate entity training data
+            self.entity_template = self.config["prompt_templates"]["entity_bracket_template"]
             intents_entities = self.get_intents_and_entities()
             self.df['entity_type_prompt'] = self.df.apply(
                 lambda row: self.get_entity_type_prompt(row, intents_entities), axis=1)
@@ -205,6 +238,21 @@ class DataPreprocessor:
                 columns={'annotated_utterance': 'answer', 'entity_type_prompt': 'prompt'})
             entity_task_df['task_type'] = 'entity'
             task_dfs.append(entity_task_df)
+
+        if self.entity_slot_training:
+            print("Entity slot training")
+            # Apply logic to generate entity slot training data
+            self.entity_template = self.config["prompt_templates"]["entity_slot_template"]
+            intents_entities = self.get_intents_and_entities()
+            self.df['annotated_utterance'] = self.df['annotated_utterance'].apply(
+                self.convert_annotated_utterance_to_slots)
+            self.df['entity_type_prompt'] = self.df.apply(
+                lambda row: self.get_entity_type_prompt(row, intents_entities), axis=1)
+            entity_task_df = self.df[['annotated_utterance', 'entity_type_prompt']].rename(
+                columns={'annotated_utterance': 'answer', 'entity_type_prompt': 'prompt'})
+            entity_task_df['task_type'] = 'entity'
+            task_dfs.append(entity_task_df)
+
 
         # Combine all task dataframes
         task_df = pd.concat(task_dfs, ignore_index=True)
@@ -231,7 +279,7 @@ def export_to_csv(df: pd.DataFrame, file_path: str):
 
 if __name__ == "__main__":
     # Define the path to your configuration file
-    CONFIG_PATH = "config/config.toml"
+    CONFIG_PATH = "config/data_processing_config.toml"
 
     # Initialize the data preprocessor
     preprocessor = DataPreprocessor(CONFIG_PATH)

@@ -1,0 +1,63 @@
+# Add the data file including path
+data_file = "data/snips_converted_test_data.csv"  #"data/cleaned_annotated.csv #"/content/drive/MyDrive/secret_sauce_ai/cleaned_annotated.csv"
+
+# the file you want to output for the processed data file including path
+processed_data_file = "data/processed/task_snips_converted_test_data.csv"
+
+# Select the tasks you want to process the data for
+domain_intent_training = true
+
+# There are two types of entity formatting, either with brackets: [entity_type : entity_value] or with slots: 0 0 0 0 entity_type
+# You can always use both, if you like but it will output duplicates of both into the data set
+entity_bracket_training = true
+entity_slot_training = true
+
+# Prompt templates
+[prompt_templates]
+# Domain and intent template
+domain_intent_template = """
+Given this utterance: '{selected_utterance}' pick the unique intent from these domain categories:
+{domain_intents}.
+If none of the intents match, return fallback.
+Intent:"""
+
+# Entity templates
+entity_bracket_template = """
+### Instructions
+Tag the entity or entities in the utterance only when they match from the list of entity types.
+There can also be no entities in an utterance. In that case, just return the utterance.
+If there aren't any entity types, just return the utterance.
+
+### Example
+Utterance: Set an alarm for 6am
+Domain: alarm
+Intent: set_alarm
+Entity types: date, time
+Annotated utterance: Set an alarm for [time : 6am]
+
+### Task
+Utterance: {selected_utterance}
+Domain: {selected_domain}
+Intent: {selected_intent}
+Entity types: {entity_types_in_intent}
+Annotated utterance:"""
+
+entity_slot_template = """
+### Instructions
+Tag the entity or entities in the utterance only when they match from the list of entity types.
+There can also be no entities in an utterance. In that case, just return the utterance.
+If there aren't any entity types, just return the utterance.
+
+### Example
+Utterance: Set an alarm for 6am
+Domain: alarm
+Intent: set_alarm
+Entity types: date, time
+Annotated utterance: 0 0 0 0 time
+
+### Task
+Utterance: {selected_utterance}
+Domain: {selected_domain}
+Intent: {selected_intent}
+Entity types: {entity_types_in_intent}
+Annotated utterance:"""

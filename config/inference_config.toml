@@ -1,0 +1,5 @@
+# File to load the data
+data_file = 'data/processed/processed_data.csv'
+
+# File to output thhe predictions to
+output_file = 'data/output/predictions.csv'

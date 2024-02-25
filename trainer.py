@@ -5,7 +5,7 @@ from datasets import Dataset
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback
 
 # Load the toml file
-config = toml.load("config/config.toml")
+config = toml.load("config/training_config.toml")
 
 # Load the model and tokenizer
 model_id = config["model_id"]

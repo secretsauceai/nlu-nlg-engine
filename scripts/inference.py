@@ -64,7 +64,7 @@ def run_inference(data: pd.DataFrame, inferencer: ModelInference):
 
 if __name__ == "__main__":
     # Load configuration
-    config = toml.load("config/config.toml")
+    config = toml.load("config/inference_config.toml")
 
     # Initialize the model inference
     inferencer = ModelInference(model_dir=config["model_output_directory"],
