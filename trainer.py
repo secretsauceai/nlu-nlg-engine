@@ -2,26 +2,35 @@ import toml
 import numpy as np
 import pandas as pd
 from datasets import Dataset
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback, DataCollatorWithPadding
 
 # Load the toml file
 config = toml.load("config/training_config.toml")
+bf16 = config.get("bf16", True)
+shuffle_dataset = config.get("shuffle_dataset", True)
+
 
 # Load the model and tokenizer
 model_id = config["model_id"]
 model = AutoModelForSeq2SeqLM.from_pretrained(model_id, device_map='auto')
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
+# Initialize the DataCollatorWithPadding with dynamic padding
+#data_collator = DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=None)
+
 # Load the processed dataset
 df = pd.read_csv(config["data_file"], sep=',')
 dataset = Dataset.from_pandas(df)
+
+if shuffle_dataset:
+    dataset = dataset.shuffle(seed=42)
 
 def tokenize_batch(batch):
     # Tokenize the prompts and answers
     # Padding to the max length might be necessary depending on your model's requirements.
     # Adjust max_length as per your model's specification or dataset's length distribution.
-    tokenized_inputs = tokenizer(batch["prompt"], padding="max_length", truncation=True, max_length=512)
-    tokenized_labels = tokenizer(batch["answer"], padding="max_length", truncation=True, max_length=64)
+    tokenized_inputs = tokenizer(batch["prompt"], padding='max_length', truncation=True,  max_length=512)
+    tokenized_labels = tokenizer(batch["answer"], padding='max_length', truncation=True, max_length=64)
 
     # Flan-T5 and other seq2seq models use decoder_input_ids for labels during training
     batch["input_ids"] = tokenized_inputs.input_ids
@@ -54,6 +63,8 @@ args = TrainingArguments(
     metric_for_best_model="eval_loss",  # Change this based on what metric you're optimizing for
     greater_is_better=False,  # Change based on metric (False for loss, True for accuracy)
     save_strategy="epoch",
+    gradient_accumulation_steps=config["gradient_accumulation_steps"],
+    bf16=bf16
 )
 
 def compute_metrics(eval_pred):
@@ -102,8 +113,9 @@ trainer = Trainer(
     train_dataset=train_dataset,
     eval_dataset=val_dataset,
     compute_metrics=compute_metrics,
-    tokenizer=tokenizer,
-)
+    tokenizer=tokenizer
+    )
+# data_collator=data_collator
 
 # Include the EarlyStoppingCallback with the desired patience
 trainer.add_callback(
