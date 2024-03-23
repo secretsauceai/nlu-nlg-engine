@@ -6,17 +6,32 @@ import pandas as pd
 from tqdm import tqdm
 
 class ModelInference:
-    def __init__(self, model_dir: str, tokenizer_dir: str, device: str = 'cuda'):
+    def __init__(self, config, device: str = 'cuda'):
         """
         Initialize the model inference with model and tokenizer.
 
         Parameters:
-        model_dir (str): Directory where the trained model is saved.
-        tokenizer_dir (str): Directory where the tokenizer is saved.
+        config (dict): Configuration loaded from TOML.
         device (str): Device to run the model on, 'cuda' or 'cpu'.
         """
         self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(model_dir).to(self.device)
+        model_dir = config["model_output_directory"]
+        tokenizer_dir = config["model_output_directory"]
+        lora_enabled = config.get("lora_enabled", False)
+        use_bf16 = config.get("use_bf16", False)
+
+        if lora_enabled:
+            from peft import PeftModel, PeftConfig
+            # Load LoRA model
+            peft_model_id = model_dir  # Assuming the directory contains the necessary PeftModel configuration
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(model_dir, torch_dtype=torch.bfloat16 if use_bf16 else torch.float32, device_map='auto')
+            peft_config = PeftConfig.from_pretrained(peft_model_id)
+            self.model = PeftModel.from_pretrained(self.model, peft_model_id, device_map='auto')
+        else:
+            # Load regular model
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(model_dir, torch_dtype=torch.bfloat16 if use_bf16 else torch.float32, device_map='auto')
+        
+        self.model.to(self.device).eval()  # Ensure model is in evaluation mode
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 
     def predict(self, text: str) -> str:
@@ -67,8 +82,7 @@ if __name__ == "__main__":
     config = toml.load("config/inference_config.toml")
 
     # Initialize the model inference
-    inferencer = ModelInference(model_dir=config["model_output_directory"],
-                                tokenizer_dir=config["model_output_directory"])
+    inferencer = ModelInference(config=config)
 
     # Load and prepare data for inference
     prepared_data = load_and_prepare_data(config["processed_data_file"])

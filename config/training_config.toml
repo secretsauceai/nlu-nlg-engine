@@ -5,13 +5,21 @@ data_file = 'data/processed/task_sample_reannotated_data_and_snips_converted_tes
 shuffle_dataset = true
 
 # Model Parameters
-model_id = "google/flan-t5-large"
+model_id = "google/flan-t5-xl"
 test_split = 0.2
-model_output_directory = "models/flan_t5_large_intent_ner_more_data_with_both_entity_tag_types"
-learning_rate = 2e-5
-per_device_train_batch_size = 2
+model_output_directory = "models/flan_t5_xl_lora_intent_ner_more_data_with_both_entity_tag_types"
+learning_rate = 1e-3 #2e-5
+per_device_train_batch_size = 4
 per_device_eval_batch_size = 2
 num_train_epochs = 10
 early_stopping_patience = 3
-gradient_accumulation_steps = 16
+gradient_accumulation_steps = 4
 bf16=true
+
+# LoRA Configuration
+lora_enabled = true
+lora_r = 16
+lora_alpha = 32
+target_modules = ["q", "v"]
+lora_dropout = 0.05
+lora_bias = "none"

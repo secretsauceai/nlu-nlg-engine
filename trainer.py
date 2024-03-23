@@ -1,22 +1,42 @@
 import toml
 import numpy as np
 import pandas as pd
+import torch
 from datasets import Dataset
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback, DataCollatorWithPadding
+from transformers import (AutoModelForSeq2SeqLM, AutoTokenizer, Trainer,
+                          TrainingArguments, EarlyStoppingCallback, DataCollatorWithPadding)
 
 # Load the toml file
 config = toml.load("config/training_config.toml")
 bf16 = config.get("bf16", True)
 shuffle_dataset = config.get("shuffle_dataset", True)
-
+lora_enabled = config.get("lora_enabled", False)
 
 # Load the model and tokenizer
 model_id = config["model_id"]
-model = AutoModelForSeq2SeqLM.from_pretrained(model_id, device_map='auto')
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
-# Initialize the DataCollatorWithPadding with dynamic padding
-#data_collator = DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=None)
+if lora_enabled:
+    print("LoRA is enabled")
+    from peft import LoraConfig, get_peft_model, TaskType  # Import PEFT only if LoRA is enabled
+    # Define LoRA Config
+    lora_config = LoraConfig(
+        r=config.get("lora_r", 16),
+        lora_alpha=config.get("lora_alpha", 32),
+        target_modules=config.get("target_modules", ["q", "v"]),
+        lora_dropout=config.get("lora_dropout", 0.05),
+        bias=config.get("lora_bias", "none"),
+        task_type=TaskType.SEQ_2_SEQ_LM
+    )
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_id, device_map='auto', torch_dtype=torch.bfloat16 if bf16 else torch.float32)
+    model = get_peft_model(model, lora_config)
+else:
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_id, device_map='auto', torch_dtype=torch.bfloat16 if bf16 else torch.float32)
+
+# Ensure that the rest of your script, including dataset preparation, tokenization, training setup, etc.,
+# follows here, adapting as necessary to fit your overall training procedure.
+
+
 
 # Load the processed dataset
 df = pd.read_csv(config["data_file"], sep=',')

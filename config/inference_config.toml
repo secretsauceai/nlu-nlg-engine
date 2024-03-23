@@ -1,5 +1,15 @@
+# Data
 # File to load the data
 data_file = 'data/processed/processed_data.csv'
 
 # File to output thhe predictions to
 output_file = 'data/output/predictions.csv'
+
+# Model
+model_output_directory = "path/to/your/model/directory"
+
+# Precision setting
+use_bf16 = true
+
+# LoRA Configuration
+lora_enabled = true
