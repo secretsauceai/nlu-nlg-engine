@@ -1,9 +1,8 @@
-# Data
-# File path to the original data for inference
-data_file = "data/snips_converted_test_data.csv"
+# Add the data file including path
+data_file = "data/snips_converted_test_data.csv"  #"data/cleaned_annotated.csv #"/content/drive/MyDrive/secret_sauce_ai/cleaned_annotated.csv"
 
-# File to output the final predictions to
-predictions_output_file = "data/output/final_predictions.csv"
+# the file you want to output for the processed data file including path
+processed_data_file = "data/processed/task_snips_converted_test_data.csv"
 
 # Select the tasks you want to process the data for
 domain_intent_task = true
@@ -11,9 +10,9 @@ domain_intent_task = true
 # There are two types of entity formatting, either with brackets: [entity_type : entity_value] or with slots: 0 0 0 0 entity_type
 # You can always use both, if you like but it will output duplicates of both into the data set
 entity_bracket_training = true
-entity_slot_training = false
+entity_slot_training = true
 
- Prompt templates
+# Prompt templates
 [prompt_templates]
 # Domain and intent template
 domain_intent_template = """
@@ -62,15 +61,3 @@ Domain: {selected_domain}
 Intent: {selected_intent}
 Entity types: {entity_types_in_intent}
 Annotated utterance:"""
-
-# Model
-model_output_directory = "path/to/your/model/directory"
-
-# Precision setting
-use_bf16 = true
-
-# LoRA Configuration
-lora_enabled = true
-
-# Set whether to use bracket or slot prompts
-use_entity_bracket = true

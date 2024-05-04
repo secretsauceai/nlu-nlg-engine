@@ -17,10 +17,12 @@ class DataPreprocessor:
                        options for data processing.
         df (pd.DataFrame): The loaded and potentially preprocessed dataframe from the specified
                            data source.
-        domain_intent_training (bool): Flag indicating if domain-intent training data should be
+        domain_intent_task (bool): Flag indicating if domain-intent task data should be
                                        generated.
-        entity_training (bool): Flag indicating if entity recognition training data should be
-                                generated.
+        entity_bracket_task (bool): Flag indicating if entity recognition data should be
+                                generated for bracket format.
+        entity_slot_task (bool): Flag indicating if entity recognition data should be
+                                generated for slot format.
 
     Methods:
         clean_and_structure_data: Cleans and structures the dataframe by selecting necessary
@@ -42,14 +44,11 @@ class DataPreprocessor:
         """
         self.config = toml.load(config_path)
         self.df = pd.read_csv(self.config["data_file"], sep=',')
-        self.domain_intent_training = self.config.get("domain_intent_training", False)
-        self.entity_bracket_training = self.config.get("entity_bracket_training", False)
-        self.entity_slot_training = self.config.get("entity_slot_training", False)
+        self.domain_intent_task = self.config.get("domain_intent_task", False)
+        self.entity_bracket_task = self.config.get("entity_bracket_task", False)
+        self.entity_slot_task = self.config.get("entity_slot_task", False)
         self.domain_intent_template = self.config["prompt_templates"]["domain_intent_template"]
         self.entity_template = None
-
-
-
 
 
     def clean_and_structure_data(self) -> pd.DataFrame:
@@ -219,7 +218,7 @@ class DataPreprocessor:
         """
         task_dfs = []  # List to hold task dataframes
 
-        if self.domain_intent_training:
+        if self.domain_intent_task:
             # Apply logic to generate domain intent training data
             self.df['intent_prompt'] = self.df.apply(self.get_domain_intent_prompt, axis=1)
             intent_task_df = self.df[['intent', 'intent_prompt']].rename(
@@ -227,8 +226,7 @@ class DataPreprocessor:
             intent_task_df['task_type'] = 'intent'
             task_dfs.append(intent_task_df)
 
-        if self.entity_bracket_training:
-            print("Entity bracket training")
+        if self.entity_bracket_task:
             # Apply logic to generate entity training data
             self.entity_template = self.config["prompt_templates"]["entity_bracket_template"]
             intents_entities = self.get_intents_and_entities()
@@ -239,8 +237,7 @@ class DataPreprocessor:
             entity_task_df['task_type'] = 'entity'
             task_dfs.append(entity_task_df)
 
-        if self.entity_slot_training:
-            print("Entity slot training")
+        if self.entity_slot_task:
             # Apply logic to generate entity slot training data
             self.entity_template = self.config["prompt_templates"]["entity_slot_template"]
             intents_entities = self.get_intents_and_entities()
@@ -275,23 +272,3 @@ def export_to_csv(df: pd.DataFrame, file_path: str):
     # Export the dataframe
     df.to_csv(file_path, index=False)
     print(f"Data exported successfully to {file_path}")
-
-
-if __name__ == "__main__":
-    # Define the path to your configuration file
-    CONFIG_PATH = "config/data_processing_config.toml"
-
-    # Initialize the data preprocessor
-    preprocessor = DataPreprocessor(CONFIG_PATH)
-
-    # Clean and structure the data
-    cleaned_data = preprocessor.clean_and_structure_data()
-
-    # Prepare the data for tasks based on configuration
-    task_data = preprocessor.prepare_task_data()
-
-    # Get the full path for the processed data file from the config
-    processed_data_file_path = preprocessor.config["processed_data_file"]
-
-    # Export the task data to a CSV file
-    export_to_csv(task_data, processed_data_file_path)
