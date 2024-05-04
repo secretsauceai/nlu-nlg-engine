@@ -20,6 +20,11 @@ The data was formatted into the following columns:
 - `annotated_utterance`: The user's input with the entity tags such as 'wake me up at [time : 7am]'. For the Snips data set, the entity tags are in the form of '0 0 0 0 time'.
 
 ### Creating our processed data set
+
+#### Processing a data set
+You can use the module `modules/data_preprocessing.py` to generally preprocess a data set.
+
+#### Processing training data
 We need to take our data and process it into a format we can use with the model. We want to turn our data into prompted tasks for our model to learn. 
 
 In the `config/data_processing_config.toml` file, we specify:
@@ -34,7 +39,7 @@ In the `config/data_processing_config.toml` file, we specify:
 
 Then we can run the following command to process the data:
 ```bash
-python scripts/process_data.py
+python -m scripts.training_data_preprocessing
 ```
 
 ## 2. Training the model
@@ -46,9 +51,30 @@ python trainer.py
 ```
 
 ### 3. Inference
-We can then use the trained model to make predictions. You can configure the inference in the `config/inference_config.toml` file.
+
+#### Run test inference
+You can test the model on a test set where the intents and/or entities are already labeled. This requires pre-processing the data beforehand so you have your intent/entity prompts ready. 
+
+You can configure the test inference in the `config/test_inference_config.toml` file.
+
+We can run the following command to make predictions on the test data:
+```bash
+python -m scripts.run_test_inference
+```
+
+#### Run inference
+We can then use the trained model to make predictions on a data set where we might not have the intents/entities annotated. This does not require pre-processing the data beforehand. It will take the columns:
+ - `utterance`
+ - `domain`
+ - `intent`
+ - `annotated_utterance`
+
+ and make predictions on the intent and/or entities. If you are doing entity prediction, you will still need to have the `intent` and domain for the entity prompt. So if you really want to see how it does, predict both intents and entities.
+
+You can configure the inference in the `config/inference_config.toml` file.
+
 
 We can then run the following command to make predictions:
 ```bash
-python scripts/inference.py
+python -m scripts.run_inference
 ```

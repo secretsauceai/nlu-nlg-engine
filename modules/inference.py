@@ -22,17 +22,25 @@ class ModelInference:
 
         if lora_enabled:
             from peft import PeftModel, PeftConfig
-            # Load LoRA model
+            # Load pre-trained and LoRA model
             peft_model_id = model_dir  # Assuming the directory contains the necessary PeftModel configuration
-            self.model = AutoModelForSeq2SeqLM.from_pretrained(model_dir, torch_dtype=torch.bfloat16 if use_bf16 else torch.float32, device_map='auto')
             peft_config = PeftConfig.from_pretrained(peft_model_id)
+            base_model_path = peft_config.base_model_name_or_path
+            
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                base_model_path, torch_dtype=torch.bfloat16 if use_bf16 else torch.float32, device_map='auto')
             self.model = PeftModel.from_pretrained(self.model, peft_model_id, device_map='auto')
+            self.model = self.model.merge_and_unload()
+
+            # Load the tokenizer from the base model path
+            self.tokenizer = AutoTokenizer.from_pretrained(base_model_path)
         else:
             # Load regular model
-            self.model = AutoModelForSeq2SeqLM.from_pretrained(model_dir, torch_dtype=torch.bfloat16 if use_bf16 else torch.float32, device_map='auto')
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                model_dir, torch_dtype=torch.bfloat16 if use_bf16 else torch.float32, device_map='auto')
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
         
         self.model.to(self.device).eval()  # Ensure model is in evaluation mode
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 
     def predict(self, text: str) -> str:
         """
