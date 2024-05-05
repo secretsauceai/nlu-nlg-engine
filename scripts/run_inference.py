@@ -50,16 +50,19 @@ def main(inference_config_path):
         save_checkpoint(df_cleaned, output_path, 'predicted_intents')
     
     # Step 3: Generate entity prompts using predicted intents if not done yet
+    # Precompute intents and entities once
+    print("Precomputing intents and entities")
+    intents_entities = preprocessor.get_intents_and_entities()
+    print("Intents and entities precomputed successfully")
     def prepare_entity_prompt(row):
         # Update intent with predicted intent
         row['intent'] = row['predicted_intent']
-
         # Find the predicted domain based on the predicted intent
         matching_rows = df_cleaned[df_cleaned['intent'] == row['predicted_intent']]
         predicted_domain = matching_rows['domain'].iloc[0] if not matching_rows.empty else row['domain']
         row['domain'] = predicted_domain
 
-        return preprocessor.get_entity_type_prompt(row, preprocessor.get_intents_and_entities())
+        return preprocessor.get_entity_type_prompt(row, intents_entities)
 
     if 'entity_prompt' not in df_cleaned.columns:
         # Select the appropriate entity template
