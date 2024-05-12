@@ -1,5 +1,8 @@
-# nlu-engine
-Encoder-Decoder zero shot domain (skill), intent, and entity tagging NLU model. This is a work in progress. Once it works really well, this repo will be moved to a Secret Sauce AI repo.
+# nlu-nlg-engine
+**NLU**: Encoder-Decoder zero shot domain (skill), intent, and entity tagging NLU model.
+**NLG**: Encoder-Decoder zero shot response generation.
+
+This is a work in progress. Once it works really well, this repo will be moved to a Secret Sauce AI repo.
 
 Once this is done, we will work on adding NLG capabilities to the model.
 
