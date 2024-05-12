@@ -47,8 +47,10 @@ class DataPreprocessor:
         self.domain_intent_task = self.config.get("domain_intent_task", False)
         self.entity_bracket_task = self.config.get("entity_bracket_task", False)
         self.entity_slot_task = self.config.get("entity_slot_task", False)
+        self.nlg_task = self.config.get("nlg_task", False)
         self.domain_intent_template = self.config["prompt_templates"]["domain_intent_template"]
         self.entity_template = None
+        self.nlg_template = self.config["prompt_templates"]["nlg_template"]
 
 
     def clean_and_structure_data(self) -> pd.DataFrame:
@@ -63,7 +65,10 @@ class DataPreprocessor:
             self.df = self.df.rename(
                 columns={'annotated_utterance_cleaned_and_removed_incorrect_tags': 'annotated_utterance'})
 
-        self.df = self.df[['utterance', 'domain', 'intent', 'annotated_utterance']]
+        if self.nlg_task:
+            self.df = self.df[['utterance', 'domain', 'intent', 'annotated_utterance', 'api_response', 'nlg_response']]
+        else:
+            self.df = self.df[['utterance', 'domain', 'intent', 'annotated_utterance']]
         return self.df
 
     def get_domain_intent_prompt(self, selected_row: pd.Series) -> str:
@@ -208,6 +213,24 @@ class DataPreprocessor:
             selected_intent=selected_intent, entity_types_in_intent=entity_types_in_intent)
 
         return entity_type_prompt
+    
+    def get_nlg_prompt(self, selected_row: pd.Series) -> str:
+        """
+        Generate an NLG prompt for a given row of data.
+
+        Parameters:
+        selected_row (pd.Series): A row from the dataframe.
+
+        Returns:
+        str: A generated NLG prompt.
+        """
+        selected_utterance = selected_row['utterance']
+        selected_api_response = selected_row['api_response']
+
+        nlg_prompt = self.nlg_template.format(
+            selected_utterance=selected_utterance, selected_api_response=selected_api_response)
+
+        return nlg_prompt
 
     def prepare_task_data(self) -> pd.DataFrame:
         """
@@ -249,6 +272,14 @@ class DataPreprocessor:
                 columns={'annotated_utterance': 'answer', 'entity_type_prompt': 'prompt'})
             entity_task_df['task_type'] = 'entity'
             task_dfs.append(entity_task_df)
+
+        if self.nlg_task:
+            # Apply logic to generate NLG training data
+            self.df['nlg_prompt'] = self.df.apply(self.get_nlg_prompt, axis=1)
+            nlg_task_df = self.df[['api_response', 'nlg_prompt']].rename(
+                columns={'api_response': 'answer', 'nlg_prompt': 'prompt'})
+            nlg_task_df['task_type'] = 'nlg'
+            task_dfs.append(nlg_task_df)
 
 
         # Combine all task dataframes
