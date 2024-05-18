@@ -1,6 +1,1 @@
-git+http://github.com/huggingface/transformers.git
-datasets==2.9.0
-evaluate==0.4.0
-accelerate>=0.20.3
-pandas
-toml
+-e .
