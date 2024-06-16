@@ -64,7 +64,7 @@ We can then run the following command to train the model:
 python trainer.py
 ```
 
-### 3. Inference
+## 3. Inference
 
 #### Run test inference
 You can test the model on a test set where the intents and/or entities are already labeled. This requires pre-processing the data beforehand so you have your intent/entity prompts ready. 
