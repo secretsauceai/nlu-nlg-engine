@@ -2,9 +2,10 @@ import toml
 import numpy as np
 import pandas as pd
 import torch
-from datasets import Dataset
+from datasets import Dataset, load_metric
 from transformers import (AutoModelForSeq2SeqLM, AutoTokenizer, Trainer,
                           TrainingArguments, EarlyStoppingCallback, DataCollatorWithPadding)
+
 
 # Load the toml file
 config = toml.load("config/training_config.toml")
@@ -64,6 +65,13 @@ essential_columns = ["input_ids", "attention_mask", "labels", "task_type"]
 tokenized_dataset = tokenized_dataset.remove_columns(
     [col for col in tokenized_dataset.column_names if col not in essential_columns])
 
+# Check if there are any NLG tasks in the dataset
+has_nlg_task = 'nlg' in tokenized_dataset['task_type']
+
+# Conditionally load the ROUGE metric
+if has_nlg_task:
+    rouge_metric = load_metric("rouge")
+
 # Split your tokenized dataset into training and validation sets
 split_dataset = tokenized_dataset.train_test_split(test_size=config["test_split"])
 train_dataset = split_dataset["train"]
@@ -90,7 +98,6 @@ args = TrainingArguments(
 def compute_metrics(eval_pred):
     logits, labels = eval_pred.predictions, eval_pred.label_ids
 
-    # If logits is a tuple, we're assuming the actual logits are the first element
     if isinstance(logits, tuple):
         logits = logits[0]
 
@@ -100,29 +107,41 @@ def compute_metrics(eval_pred):
 
     task_types = trainer.eval_dataset['task_type']
 
-    scores = {'intent': {'exact_match': 0}, 'entity': {'exact_match': 0}}
-    count = {'intent': 0, 'entity': 0}
+    scores = {'intent': {'exact_match': 0}, 'entity': {'exact_match': 0}, 'nlg': {'rouge1': 0, 'rouge2': 0, 'rougeL': 0}}
+    count = {'intent': 0, 'entity': 0, 'nlg': 0}
 
     for pred, label, task_type in zip(pred_ids, labels_np, task_types):
-        # Skip comparison for padding tokens (-100 is often used for padding in Hugging Face)
         valid_indices = label != -100
         pred = pred[valid_indices]
         label = label[valid_indices]
 
-        # Calculate exact match for this example
-        exact_match = np.all(pred == label)
-
-        # Increment counts and add to scores based on task type
-        scores[task_type]['exact_match'] += exact_match
-        count[task_type] += 1
+        if task_type == 'nlg':
+            pred_str = tokenizer.batch_decode(pred, skip_special_tokens=True)
+            label_str = tokenizer.batch_decode(label, skip_special_tokens=True)
+            rouge_scores = rouge_metric.compute(predictions=pred_str, references=label_str)
+            for key in ['rouge1', 'rouge2', 'rougeL']:
+                scores['nlg'][key] += rouge_scores[key].mid.fmeasure
+            count['nlg'] += 1
+        else:
+            exact_match = np.all(pred == label)
+            scores[task_type]['exact_match'] += exact_match
+            count[task_type] += 1
 
     avg_scores = {}
     for task, task_count in count.items():
-        avg_score_key = f"{task}_exact_match"
-        if task_count > 0:
-            avg_scores[avg_score_key] = scores[task]['exact_match'] / task_count
+        if task == 'nlg':
+            if task_count > 0:
+                for key in ['rouge1', 'rouge2', 'rougeL']:
+                    avg_scores[f"nlg_{key}"] = scores['nlg'][key] / task_count
+            else:
+                for key in ['rouge1', 'rouge2', 'rougeL']:
+                    avg_scores[f"nlg_{key}"] = 0
         else:
-            avg_scores[avg_score_key] = 0
+            avg_score_key = f"{task}_exact_match"
+            if task_count > 0:
+                avg_scores[avg_score_key] = scores[task]['exact_match'] / task_count
+            else:
+                avg_scores[avg_score_key] = 0
 
     return avg_scores
 
