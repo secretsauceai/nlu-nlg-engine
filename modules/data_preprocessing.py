@@ -4,6 +4,7 @@ import random
 import os
 import pandas as pd
 import toml
+import csv
 
 class DataPreprocessor:
     """
@@ -43,7 +44,12 @@ class DataPreprocessor:
         config_path (str): Path to the configuration file.
         """
         self.config = toml.load(config_path)
-        self.df = pd.read_csv(self.config["data_file"], sep=',')
+        try:
+            self.df = pd.read_csv(self.config["data_file"], sep=',')
+        except pd.errors.ParserError:
+            # If a ParserError occurs, try reading with quotechar and quoting
+            self.df = pd.read_csv(self.config["data_file"], sep=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
         self.domain_intent_task = self.config.get("domain_intent_task", False)
         self.entity_bracket_task = self.config.get("entity_bracket_task", False)
         self.entity_slot_task = self.config.get("entity_slot_task", False)
@@ -227,6 +233,9 @@ class DataPreprocessor:
         selected_utterance = selected_row['utterance']
         selected_api_response = selected_row['api_response']
 
+        # Debug print statement!
+        print(f"Selected row: {selected_row}")
+
         nlg_prompt = self.nlg_template.format(
             selected_utterance=selected_utterance, selected_api_response=selected_api_response)
 
@@ -276,8 +285,8 @@ class DataPreprocessor:
         if self.nlg_task:
             # Apply logic to generate NLG training data
             self.df['nlg_prompt'] = self.df.apply(self.get_nlg_prompt, axis=1)
-            nlg_task_df = self.df[['api_response', 'nlg_prompt']].rename(
-                columns={'api_response': 'answer', 'nlg_prompt': 'prompt'})
+            nlg_task_df = self.df[['nlg_response', 'nlg_prompt']].rename(
+                columns={'nlg_response': 'answer', 'nlg_prompt': 'prompt'})
             nlg_task_df['task_type'] = 'nlg'
             task_dfs.append(nlg_task_df)
 
@@ -286,20 +295,20 @@ class DataPreprocessor:
         task_df = pd.concat(task_dfs, ignore_index=True)
         return task_df
 
-def export_to_csv(df: pd.DataFrame, file_path: str):
-    """
-    Export the given dataframe to a CSV file at the specified file path.
+    def export_to_csv(self, df: pd.DataFrame, file_path: str):
+        """
+        Export the given dataframe to a CSV file at the specified file path.
 
-    Parameters:
-    df (pd.DataFrame): Dataframe to export.
-    file_path (str): Full file path to export the CSV file.
-    """
-    # Split the file path to get the directory
-    directory = os.path.dirname(file_path)
+        Parameters:
+        df (pd.DataFrame): Dataframe to export.
+        file_path (str): Full file path to export the CSV file.
+        """
+        # Split the file path to get the directory
+        directory = os.path.dirname(file_path)
 
-    # Check if the directory exists, if not, create it
-    os.makedirs(directory, exist_ok=True)
+        # Check if the directory exists, if not, create it
+        os.makedirs(directory, exist_ok=True)
 
-    # Export the dataframe
-    df.to_csv(file_path, index=False)
-    print(f"Data exported successfully to {file_path}")
+        # Export the dataframe
+        df.to_csv(file_path, index=False)
+        print(f"Data exported successfully to {file_path}")

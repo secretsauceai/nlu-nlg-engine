@@ -10,8 +10,8 @@ domain_intent_task = true
 
 # There are two types of entity formatting, either with brackets: [entity_type : entity_value] or with slots: 0 0 0 0 entity_type
 # You can always use both, if you like but it will output duplicates of both into the data set
-entity_bracket_training = true
-entity_slot_training = false
+entity_bracket_task = true
+entity_slot_task = false
 
  Prompt templates
 [prompt_templates]

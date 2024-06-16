@@ -1,16 +1,16 @@
 # Add the data file including path
-data_file = "data/snips_converted_test_data.csv"  #"data/cleaned_annotated.csv #"/content/drive/MyDrive/secret_sauce_ai/cleaned_annotated.csv"
+data_file = "/home/b/code/nlg-engine/data/normalized_simulated_api_calls_and_responses.csv" #"data/snips_converted_test_data.csv"  #"data/cleaned_annotated.csv #"/content/drive/MyDrive/secret_sauce_ai/cleaned_annotated.csv"
 
 # the file you want to output for the processed data file including path
-processed_data_file = "data/processed/task_snips_converted_test_data.csv"
+processed_data_file = "data/processed/task_simulated_api_and_nlg_responses_converted_test_data.csv"
 
 # Select the tasks you want to process the data for
-domain_intent_task = true
+domain_intent_task = false
 
 # There are two types of entity formatting, either with brackets: [entity_type : entity_value] or with slots: 0 0 0 0 entity_type
 # You can always use both, if you like but it will output duplicates of both into the data set
-entity_bracket_training = true
-entity_slot_training = true
+entity_bracket_task = false
+entity_slot_task = false
 
 # NLG task
 nlg_task = true
@@ -72,10 +72,10 @@ Create a text response using the the information given.
 
 ### Example
 Utterance: Set an alarm for 6am
-API response: { 'status': 'success', 'alarm_time': '06:00' }
+API response: {{ 'status': 'success', 'alarm_time': '06:00' }}
 Response: Your alarm has been set for 6am.
 
 ### Task
 Utterance: {selected_utterance}
-API response: {api_response}
-Response:"""
+API response: {selected_api_response}
+NLG response:"""
