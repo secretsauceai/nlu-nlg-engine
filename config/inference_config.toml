@@ -13,7 +13,7 @@ domain_intent_task = true
 entity_bracket_task = true
 entity_slot_task = false
 
- Prompt templates
+# Prompt templates
 [prompt_templates]
 # Domain and intent template
 domain_intent_template = """
