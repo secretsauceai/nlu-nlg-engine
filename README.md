@@ -4,8 +4,6 @@
 
 This is a work in progress. Once it works really well, this repo will be moved to a Secret Sauce AI repo.
 
-Once this is done, we will work on adding NLG capabilities to the model.
-
 ## Model
 The model used is an encoder-decoder model. We use t5-based models. The model I personally work on is `flan-t5`. Why are we using this model? It is good to use a model that can do both intent and entity tagging. We want to have one model to do both, and we want it to be zero shot. The use case is for people who have limited computational resources, such as a raspi4. Having multiple models wouldn't be ideal. We want it to be zero shot, so that it works with any intents and entities for voice assistants. Flan is pretty good for this since it was pre-trained using prompting on a variety of NLP tasks. Generally, encoder-decoder models perform better on the kind of tasks we are interested in than decoder only models when there is a constraint on computational resources.
 
